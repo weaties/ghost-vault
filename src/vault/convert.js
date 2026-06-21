@@ -1,3 +1,4 @@
+import path from 'node:path';
 import matter from 'gray-matter';
 import TurndownService from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
@@ -76,16 +77,19 @@ function extFromUrl(url) {
  * URL to point at them. Only http(s) images are localized/downloaded; relative or
  * otherwise non-URL refs (e.g. broken `../attachments/...` never rewritten upstream)
  * are left exactly as-is and counted as `skipped` — they're already broken in Ghost,
- * so the mirror preserves them faithfully rather than erroring on a fetch. Attachments
- * live beside the post, so markdown refs are bare filenames.
+ * so the mirror preserves them faithfully rather than erroring on a fetch. Images go
+ * in a top-level `attachments/` dir; refs are post-relative (e.g. `../../attachments/…`).
  */
-function localizeImages(html, featureUrl, slug) {
-  const map = new Map(); // url -> local filename (dedup within the post)
+function localizeImages(html, featureUrl, slug, relPath) {
+  // Post-relative path to the vault's top-level attachments/ dir (depth-aware,
+  // so it's correct for `2024/02/post.md` -> `../../attachments` and undated -> `../attachments`).
+  const toAttach = path.posix.relative(path.posix.dirname(relPath), 'attachments');
+  const map = new Map(); // url -> post-relative ref (dedup within the post)
   let n = 0;
   let skipped = 0;
   let feature = featureUrl;
   if (isHttp(featureUrl)) {
-    const fn = `${slug}__feature${extFromUrl(featureUrl)}`;
+    const fn = `${toAttach}/${slug}__feature${extFromUrl(featureUrl)}`;
     map.set(featureUrl, fn);
     feature = fn;
   }
@@ -99,7 +103,7 @@ function localizeImages(html, featureUrl, slug) {
     }
     let fn = map.get(src);
     if (!fn) {
-      fn = `${slug}__${++n}${extFromUrl(src)}`;
+      fn = `${toAttach}/${slug}__${++n}${extFromUrl(src)}`;
       map.set(src, fn);
     }
     return tag.replace(src, fn);
@@ -127,12 +131,13 @@ export function convertExport(exportDoc, opts = {}) {
     const status = p.status || 'published';
     if (status !== 'published' && !opts.includeDrafts) continue;
 
+    const relPath = postRelPath({ ...p, slug: p.slug });
     let html = resolveGhostUrls(p.html || '', siteUrl);
     let feature = resolveGhostUrls(p.feature_image, siteUrl) || null;
     let downloads = [];
     let brokenRefs = 0;
     if (doLocalize) {
-      const planned = localizeImages(html, feature, p.slug);
+      const planned = localizeImages(html, feature, p.slug, relPath);
       html = planned.html;
       feature = planned.feature;
       downloads = planned.downloads;
@@ -165,7 +170,7 @@ export function convertExport(exportDoc, opts = {}) {
 
     // lineWidth:-1 stops js-yaml from wrapping long values (URLs) across lines.
     const markdown = matter.stringify(body, fm, { lineWidth: -1 });
-    out.push({ relPath: postRelPath({ ...p, slug: p.slug }), markdown, downloads, brokenRefs, post: p });
+    out.push({ relPath, markdown, downloads, brokenRefs, post: p });
   }
   return out;
 }

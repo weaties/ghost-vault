@@ -53,14 +53,29 @@ export async function syncToVault(files, outDir, opts = {}) {
 
     if (!noImages) {
       const dir = path.dirname(newAbs);
+      // Migration: relocate any image that an older layout left beside the post
+      // into its new attachments/ location, so we move bytes instead of refetching.
+      for (const d of f.downloads) {
+        const target = path.join(dir, d.fileName); // resolves into attachments/
+        const beside = path.join(dir, path.basename(d.fileName));
+        if (beside !== target && fs.existsSync(beside) && !fs.existsSync(target)) {
+          fs.mkdirSync(path.dirname(target), { recursive: true });
+          try { fs.renameSync(beside, target); } catch { /* fall through to download */ }
+        }
+      }
       if (f.downloads.length) {
+        // Note: do NOT pass `force` here — images already on disk (incl. ones just
+        // moved into attachments/) should be skipped, not re-fetched. `force`
+        // reprocesses posts (rewrite md, relocate images), not re-download bytes.
         const tasks = f.downloads.map((d) => ({ url: d.url, absPath: path.join(dir, d.fileName) }));
-        const s = await downloadImages(tasks, { cache: imgCache, force });
+        const s = await downloadImages(tasks, { cache: imgCache });
         for (const k of ['ok', 'copied', 'skipped', 'failed']) img[k] += s[k];
         img.failures.push(...s.failures);
       }
-      // Drop attachments for this slug that are no longer referenced (image set changed).
-      pruneOrphanAttachments(dir, f.post.slug, f.downloads.map((d) => d.fileName));
+      // Remove any images still sitting beside the post (old layout / orphans).
+      removeBySlugPrefix(dir, f.post.slug);
+      // Prune orphans for this slug in the attachments dir (image set changed).
+      pruneOrphanAttachments(path.join(outDir, 'attachments'), f.post.slug, f.downloads.map((d) => path.basename(d.fileName)));
     }
   }
 
@@ -70,15 +85,20 @@ export async function syncToVault(files, outDir, opts = {}) {
   return { stats, moves, deletions, img, brokenRefs };
 }
 
-/** Remove a post's old markdown + its slug-prefixed attachments (on move). */
+/** Remove a post's old markdown + its slug-prefixed attachments (on slug/dir move). */
 function removeOldFiles(outDir, prior) {
-  const oldAbs = path.join(outDir, prior.relPath);
-  safeRm(oldAbs);
-  const oldDir = path.dirname(oldAbs);
-  if (prior.slug && fs.existsSync(oldDir)) {
-    for (const name of fs.readdirSync(oldDir)) {
-      if (name.startsWith(`${prior.slug}__`)) safeRm(path.join(oldDir, name));
-    }
+  safeRm(path.join(outDir, prior.relPath));
+  if (prior.slug) {
+    removeBySlugPrefix(path.dirname(path.join(outDir, prior.relPath)), prior.slug); // legacy alongside
+    removeBySlugPrefix(path.join(outDir, 'attachments'), prior.slug); // current location
+  }
+}
+
+/** Remove every <slug>__* file directly in a dir. */
+function removeBySlugPrefix(dir, slug) {
+  if (!slug || !fs.existsSync(dir)) return;
+  for (const name of fs.readdirSync(dir)) {
+    if (name.startsWith(`${slug}__`)) safeRm(path.join(dir, name));
   }
 }
 
