@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Generated outputs and local data — never shared.
+out/
+sources/
+*.log
+.DS_Store
+
+# Ghost -> vault mirror: the real vault is a PRIVATE dir inside the user's
+# personal Obsidian vault (VAULT_DIR in .env). It must never be committed here,
+# and Claude/LLMs must never read it (see CLAUDE.md). These guard accidental copies.
+vault/
+vault-preview/
+inbox/
+*.ghost-export.json
+ghost-export*.json

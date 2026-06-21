@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd template — periodic Ghost -> vault mirror.
+  Install: see deploy/launchd/README.md. Replace __REPO_DIR__ before loading.
+  Runs the wrapper every 6 hours (StartInterval, seconds). The wrapper writes to
+  VAULT_DIR (from .env) and commits. This is the sanctioned unattended write path.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.weaties.ghost-mirror</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__REPO_DIR__/bin/mirror-sync.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_DIR__</string>
+
+    <key>StartInterval</key>
+    <integer>21600</integer>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_DIR__/out/mirror-sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_DIR__/out/mirror-sync.err.log</string>
+
+    <!-- launchd has a minimal PATH; point at the node that runs the tool. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
