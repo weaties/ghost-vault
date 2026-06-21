@@ -50,4 +50,8 @@ export const config = {
     email: process.env.GHOST_ADMIN_EMAIL,
     password: process.env.GHOST_ADMIN_PASSWORD,
   },
+
+  // Folder watched for fresh Ghost exports (the browser drops them here on Export).
+  // The launchd watcher ingests any new export found here. Defaults to ~/Downloads.
+  watchDir: resolveMaybe(process.env.WATCH_DIR || path.join(process.env.HOME || '.', 'Downloads')),
 };

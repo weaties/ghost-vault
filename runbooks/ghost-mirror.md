@@ -66,17 +66,26 @@ posts removed in Ghost are **reported, not deleted**. Use `--force` to rewrite a
 | `--drafts` | Include draft posts (default: published only) |
 | `--force` | Rewrite + redownload every post, even unchanged ones |
 
-## Scheduling (launchd)
+## Hands-off automation: watch the Downloads folder (recommended)
 
-Templates live in `deploy/launchd/`. They run a wrapper (`bin/mirror-sync.sh`)
-that: picks the newest export, runs `sync` to `VAULT_DIR`, prunes the JSON
-archive, and commits. See `deploy/launchd/README.md` to install. Until Tier-2
-auto-export exists, the wrapper expects a fresh export in `inbox/`.
+This Ghost(Pro) account has staff 2FA, so scripted login can't run unattended.
+Instead, a launchd agent watches `~/Downloads` (where Ghost exports land) and
+ingests any new one automatically:
+
+```sh
+node src/cli.js ingest --from ~/Downloads/<that-export>.json   # what the agent runs
+```
+
+`ingest` = validate + dedup (skip if already archived) + sync + archive. Install
+the watch agent per `deploy/launchd/README.md` (`com.weaties.ghost-vault-watch`).
+Then your **entire** workflow is: click **Export** in Ghost — the file lands in
+Downloads and the mirror updates itself. (`bin/mirror-sync.sh` + the `ghost-mirror`
+agent remain as a fixed-cadence, `inbox/`-based alternative.)
 
 ## Gotchas
 
-- **2FA:** scripted export can be blocked by a Ghost(Pro) email code on new-device
-  logins. Run from a stable machine/IP and persist the session; else use manual export.
+- **2FA blocks scripted export.** Confirmed on this account — `fetch-export` emails
+  a code each login. Use the watch-Downloads agent (above), not scripted login.
 - **Images:** downloaded locally beside each post (Milestone 2) → the vault is
   self-contained. Full-resolution originals, so the mirror is large (~940MB for
   ~68 image-heavy posts). Re-runs skip images already on disk. Use `--no-images`

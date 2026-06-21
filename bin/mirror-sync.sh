@@ -19,13 +19,12 @@ if [[ -f .env ]]; then
 fi
 : "${VAULT_DIR:?VAULT_DIR must be set in .env}"
 
-# Best-effort scripted export -> inbox/. Falls back to a manual export on failure.
-if [[ -n "${GHOST_ADMIN_EMAIL:-}" && -n "${GHOST_ADMIN_PASSWORD:-}" && -z "${1:-}" ]]; then
-  if node src/cli.js fetch-export --out inbox; then
-    echo "mirror-sync: fetched a fresh export"
-  else
-    echo "mirror-sync: scripted export failed (2FA/rate-limit?) — using newest inbox/ export" >&2
-  fi
+# Scripted export is OPT-IN (AUTO_FETCH_EXPORT=1) and OFF by default: with staff
+# 2FA enabled, every attempt emails a one-time code and then fails, so an
+# unattended scheduled run must NOT try it. Default flow = process inbox/.
+if [[ "${AUTO_FETCH_EXPORT:-0}" == "1" && -n "${GHOST_ADMIN_EMAIL:-}" && -z "${1:-}" ]]; then
+  node src/cli.js fetch-export --out inbox \
+    || echo "mirror-sync: scripted export failed (2FA/rate-limit?) — using newest inbox/ export" >&2
 fi
 
 # Pick the newest export from inbox/ (override with $1).

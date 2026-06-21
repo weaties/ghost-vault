@@ -7,7 +7,7 @@ import { parseWpcom, parseWxr } from './sources/wordpress.js';
 import { preparePipeline } from './pipeline.js';
 import { convertExport } from './vault/convert.js';
 import { syncToVault } from './vault/sync.js';
-import { archiveExport } from './vault/archive.js';
+import { archiveExport, stampFromMs as exportStamp } from './vault/archive.js';
 import { fetchGhostExport } from './ghost/fetchExport.js';
 import { log } from './lib/log.js';
 
@@ -22,6 +22,7 @@ Usage:
   ghost-vault sync --from <export.json>   Mirror a Ghost export into the vault (Ghost -> Obsidian)
   ghost-vault archive --from <export.json> Archive a raw export with sparse retention
   ghost-vault fetch-export [--out <dir>]   Download a fresh export via staff-session login
+  ghost-vault ingest --from <export.json>  Validate + dedup + sync + archive one export (watcher entry)
 
 Options:
   --source=obsidian|wp|all   Which era(s) to process (default: all)
@@ -163,6 +164,53 @@ async function main() {
       log.info(`retention: keeping ${r.kept}, pruned ${r.dropped.length} -> ${dir}`);
       for (const d of r.dropped.slice(0, 10)) log.dim(`  pruned: ${d}`);
       if (r.dropped.length > 10) log.dim(`  …and ${r.dropped.length - 10} more`);
+      break;
+    }
+    case 'ingest': {
+      // Process a freshly-downloaded export: validate -> dedup -> sync -> archive.
+      // Used by the Downloads watcher; safe to call repeatedly on the same file.
+      const from = arg('from', null);
+      if (!from) throw new Error('ingest needs --from=<export.json>.');
+      if (!fs.existsSync(from)) throw new Error(`Export not found: ${from}`);
+      const dryRun = process.argv.includes('--dry-run');
+      const force = process.argv.includes('--force');
+      const noImages = process.argv.includes('--no-images');
+      const outDir = arg('out', null) || (dryRun ? path.join(config.outDir, 'vault-preview') : config.vaultDir);
+      const archiveDir = arg('archive-dir', null) || (dryRun ? path.join(config.outDir, 'archive-preview') : config.archiveDir);
+      if (!outDir) throw new Error('No vault dir: set VAULT_DIR in .env or pass --out=<dir> (or --dry-run).');
+
+      const doc = JSON.parse(fs.readFileSync(from, 'utf8'));
+      const posts = doc?.db?.[0]?.data?.posts;
+      if (!Array.isArray(posts)) {
+        throw new Error(`Not a Ghost export (no db[0].data.posts): ${from}`);
+      }
+      const exportedOn = doc.db[0].meta?.exported_on || fs.statSync(from).mtimeMs;
+      const stamp = exportStamp(exportedOn);
+
+      // Dedup via the archive: an export we've ingested is already archived under
+      // its stamp, so the watcher's frequent triggers do no redundant work.
+      if (archiveDir && fs.existsSync(path.join(archiveDir, `ghost-export-${stamp}.json`)) && !force) {
+        log.info(`ingest: export ${stamp} already archived — nothing to do.`);
+        break;
+      }
+
+      const files = convertExport(doc, { siteUrl: config.ghostSiteUrl, localizeImages: !noImages });
+      const { stats, moves, deletions, img, brokenRefs } = await syncToVault(files, outDir, { force, noImages });
+      log.ok(
+        `ingest: ${stats.created} new, ${stats.updated} updated, ${stats.moved} moved, ${stats.unchanged} unchanged ` +
+          `-> ${outDir}${dryRun ? '  (dry-run)' : ''}`,
+      );
+      for (const m of moves) log.info(`  moved: ${m.from} -> ${m.to}`);
+      if (!noImages) log.ok(`images: ${img.ok} downloaded, ${img.copied} copied, ${img.skipped} present, ${img.failed} failed`);
+      if (brokenRefs) log.warn(`${brokenRefs} non-URL image ref(s) left as-is (broken in Ghost).`);
+      if (deletions.length) log.warn(`${deletions.length} post(s) in vault no longer in Ghost (NOT deleted — review).`);
+
+      if (archiveDir) {
+        const r = archiveExport(from, archiveDir, { keepRecentDays: 7, dryRun });
+        log.ok(`archive: ${r.archived ? 'stored' : 'present'} ${r.name}; keeping ${r.kept}, pruned ${r.dropped.length}`);
+      } else {
+        log.dim('ARCHIVE_DIR not set — skipping export archive (and dedup).');
+      }
       break;
     }
     case 'fetch-export': {

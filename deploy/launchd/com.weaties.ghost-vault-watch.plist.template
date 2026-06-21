@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd template — watch the Downloads folder and ingest fresh Ghost exports.
+  Install: see deploy/launchd/README.md. Replace __REPO_DIR__ and __WATCH_DIR__.
+  WatchPaths fires the job whenever the folder's contents change; the script
+  exits immediately if there's no new Ghost export, so frequent triggers are cheap.
+  This is the sanctioned unattended writer of VAULT_DIR — no Ghost login, no 2FA.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.weaties.ghost-vault-watch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__REPO_DIR__/bin/ingest-downloads.sh</string>
+    </array>
+
+    <key>WatchPaths</key>
+    <array>
+        <string>__WATCH_DIR__</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_DIR__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_DIR__/out/ingest.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_DIR__/out/ingest.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

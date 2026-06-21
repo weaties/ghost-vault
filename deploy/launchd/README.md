@@ -1,42 +1,61 @@
-# launchd — scheduled Ghost → vault mirror
+# launchd agents
 
-Runs `bin/mirror-sync.sh` on a schedule so the vault stays current without you
-remembering to run it. This is the **only** sanctioned unattended writer of the
-real `VAULT_DIR`.
+Two ways to keep the vault current. Both are sanctioned unattended writers of the
+real `VAULT_DIR`; pick one (the **watch agent is recommended**).
 
-## Install
+## Recommended: watch the Downloads folder (`ghost-vault-watch`)
+
+Your Ghost exports land in `~/Downloads` when you click **Migration tools →
+Export**. This agent watches that folder and ingests any new export
+automatically — no login, no 2FA, no file-moving. The only manual step is the
+Export click.
 
 ```sh
-REPO_DIR="$(pwd)"   # run from the repo root
+REPO_DIR="$(pwd)"                 # run from the repo root
+WATCH_DIR="$HOME/Downloads"       # or your browser's download dir
+PLIST="$HOME/Library/LaunchAgents/com.weaties.ghost-vault-watch.plist"
+
+sed -e "s|__REPO_DIR__|$REPO_DIR|g" -e "s|__WATCH_DIR__|$WATCH_DIR|g" \
+  deploy/launchd/com.weaties.ghost-vault-watch.plist.template > "$PLIST"
+
+chmod +x bin/ingest-downloads.sh
+launchctl load "$PLIST"
+```
+
+`WatchPaths` fires on any change in the folder; the script exits instantly when
+there's no new Ghost export, so frequent triggers are cheap. `ingest` dedups via
+the archive, so re-triggers do no redundant work.
+
+## Alternative: scheduled inbox processing (`ghost-mirror`)
+
+Runs `bin/mirror-sync.sh` every 6h against the newest export in `inbox/` (you drop
+exports there manually). Use this instead of the watcher if you prefer a fixed
+cadence over folder-watching.
+
+```sh
 PLIST="$HOME/Library/LaunchAgents/com.weaties.ghost-mirror.plist"
-
-# Fill the template with this repo's path.
-sed "s|__REPO_DIR__|$REPO_DIR|g" \
-  deploy/launchd/com.weaties.ghost-mirror.plist.template > "$PLIST"
-
+sed "s|__REPO_DIR__|$(pwd)|g" deploy/launchd/com.weaties.ghost-mirror.plist.template > "$PLIST"
 chmod +x bin/mirror-sync.sh
 launchctl load "$PLIST"
 ```
 
-## Prerequisites
+## Prerequisites (both)
 
-- `.env` has `VAULT_DIR` (and `GHOST_SITE_URL`) set.
-- An export is available: drop a `Migration tools → Export` JSON into `inbox/`
-  (until Tier-2 auto-export is built, the wrapper reads the newest `inbox/*.json`).
+- `.env` has `VAULT_DIR`, `GHOST_SITE_URL`, and (recommended) `ARCHIVE_DIR`.
 - Optional: `git init` inside `VAULT_DIR` so each run commits a diff.
+- launchd has a minimal environment — the plist sets `PATH`; adjust if your `node`
+  lives elsewhere (`which node`).
 
 ## Operate
 
 ```sh
-launchctl start com.weaties.ghost-mirror     # run now
-tail -f out/mirror-sync.log                  # watch
-launchctl unload "$PLIST"                     # disable
+launchctl start com.weaties.ghost-vault-watch     # run now
+tail -f out/ingest.log                            # watch
+launchctl unload "$HOME/Library/LaunchAgents/com.weaties.ghost-vault-watch.plist"   # disable
 ```
 
-## Notes
+## Note on scripted export
 
-- `StartInterval` is 6h (21600s); edit the plist to taste. A future RSS-watch
-  agent (Milestone 6) can trigger a run promptly after you publish.
-- launchd runs with a minimal environment — the plist sets `PATH`; adjust if your
-  `node` lives elsewhere (`which node`).
-- The wrapper is safe to re-run: the sync is idempotent (keyed by slug).
+`fetch-export` (staff-session login) is **not** used by either agent — with
+Ghost(Pro) staff 2FA enabled it emails a code on every login and can't run
+unattended. The watch-Downloads approach is the reliable answer.
