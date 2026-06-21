@@ -54,7 +54,12 @@ function resolveGhostUrls(s, siteUrl) {
   return s == null ? s : String(s).split('__GHOST_URL__').join(siteUrl);
 }
 
-const IMG_SRC_RE = /<img\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/gi;
+const IMG_TAG_RE = /<img\b[^>]*>/gi;
+// Capture the src value between matching quotes so a literal apostrophe inside a
+// double-quoted URL (e.g. .../A-380's....png) doesn't truncate the match.
+const SRC_RE = /\bsrc=(["'])([\s\S]*?)\1/i;
+
+const isHttp = (u) => /^https?:\/\//i.test(String(u || ''));
 
 /** File extension for a local copy, derived from the URL path (defaults .jpg). */
 function extFromUrl(url) {
@@ -68,20 +73,30 @@ function extFromUrl(url) {
 
 /**
  * Plan local filenames for a post's images and rewrite the HTML body + feature
- * URL to point at them. Returns the (possibly rewritten) html, the feature value
- * (local filename or original url), and the list of downloads to perform.
- * Attachments live beside the post, so markdown refs are bare filenames.
+ * URL to point at them. Only http(s) images are localized/downloaded; relative or
+ * otherwise non-URL refs (e.g. broken `../attachments/...` never rewritten upstream)
+ * are left exactly as-is and counted as `skipped` — they're already broken in Ghost,
+ * so the mirror preserves them faithfully rather than erroring on a fetch. Attachments
+ * live beside the post, so markdown refs are bare filenames.
  */
 function localizeImages(html, featureUrl, slug) {
   const map = new Map(); // url -> local filename (dedup within the post)
   let n = 0;
+  let skipped = 0;
   let feature = featureUrl;
-  if (featureUrl) {
+  if (isHttp(featureUrl)) {
     const fn = `${slug}__feature${extFromUrl(featureUrl)}`;
     map.set(featureUrl, fn);
     feature = fn;
   }
-  const rewritten = html.replace(IMG_SRC_RE, (tag, src) => {
+  const rewritten = html.replace(IMG_TAG_RE, (tag) => {
+    const m = tag.match(SRC_RE);
+    if (!m) return tag;
+    const src = m[2];
+    if (!isHttp(src)) {
+      skipped += 1; // relative / broken ref — leave untouched, don't download
+      return tag;
+    }
     let fn = map.get(src);
     if (!fn) {
       fn = `${slug}__${++n}${extFromUrl(src)}`;
@@ -90,7 +105,7 @@ function localizeImages(html, featureUrl, slug) {
     return tag.replace(src, fn);
   });
   const downloads = [...map].map(([url, fileName]) => ({ url, fileName }));
-  return { html: rewritten, feature, downloads };
+  return { html: rewritten, feature, downloads, skipped };
 }
 
 /**
@@ -115,11 +130,13 @@ export function convertExport(exportDoc, opts = {}) {
     let html = resolveGhostUrls(p.html || '', siteUrl);
     let feature = resolveGhostUrls(p.feature_image, siteUrl) || null;
     let downloads = [];
+    let brokenRefs = 0;
     if (doLocalize) {
       const planned = localizeImages(html, feature, p.slug);
       html = planned.html;
       feature = planned.feature;
       downloads = planned.downloads;
+      brokenRefs = planned.skipped;
     }
 
     let body = html ? td.turndown(html) : '';
@@ -148,7 +165,7 @@ export function convertExport(exportDoc, opts = {}) {
 
     // lineWidth:-1 stops js-yaml from wrapping long values (URLs) across lines.
     const markdown = matter.stringify(body, fm, { lineWidth: -1 });
-    out.push({ relPath: postRelPath({ ...p, slug: p.slug }), markdown, downloads, post: p });
+    out.push({ relPath: postRelPath({ ...p, slug: p.slug }), markdown, downloads, brokenRefs, post: p });
   }
   return out;
 }

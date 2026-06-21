@@ -22,6 +22,7 @@ export async function syncToVault(files, outDir, opts = {}) {
   const moves = [];
   const imgCache = new Map();
   const img = { ok: 0, copied: 0, skipped: 0, failed: 0, failures: [] };
+  let brokenRefs = 0;
 
   for (const f of files) {
     const id = f.post.id;
@@ -48,6 +49,7 @@ export async function syncToVault(files, outDir, opts = {}) {
     fs.mkdirSync(path.dirname(newAbs), { recursive: true });
     fs.writeFileSync(newAbs, f.markdown);
     stats[action] += 1;
+    brokenRefs += f.brokenRefs || 0;
 
     if (!noImages) {
       const dir = path.dirname(newAbs);
@@ -65,7 +67,7 @@ export async function syncToVault(files, outDir, opts = {}) {
   // Posts present in the vault but absent from the export: report, never delete.
   const deletions = [...existing.values()].filter((e) => !seen.has(e.ghostId));
 
-  return { stats, moves, deletions, img };
+  return { stats, moves, deletions, img, brokenRefs };
 }
 
 /** Remove a post's old markdown + its slug-prefixed attachments (on move). */

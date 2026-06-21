@@ -124,7 +124,7 @@ async function main() {
       });
       if (limit > 0) files = files.slice(0, limit);
 
-      const { stats, moves, deletions, img } = await syncToVault(files, outDir, { force, noImages });
+      const { stats, moves, deletions, img, brokenRefs } = await syncToVault(files, outDir, { force, noImages });
 
       log.ok(
         `sync: ${stats.created} new, ${stats.updated} updated, ${stats.moved} moved, ${stats.unchanged} unchanged ` +
@@ -137,6 +137,9 @@ async function main() {
         log.ok(`images: ${img.ok} downloaded, ${img.copied} copied, ${img.skipped} already present, ${img.failed} failed`);
         for (const f of img.failures.slice(0, 10)) log.warn(`  image failed: ${f.url} (${f.error})`);
         if (img.failures.length > 10) log.warn(`  …and ${img.failures.length - 10} more`);
+      }
+      if (brokenRefs) {
+        log.warn(`${brokenRefs} non-URL image ref(s) left as-is (already broken in Ghost — missing source image).`);
       }
       if (deletions.length) {
         log.warn(`${deletions.length} post(s) in the vault are no longer in Ghost (NOT deleted — review):`);
