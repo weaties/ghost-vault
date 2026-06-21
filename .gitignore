@@ -12,8 +12,9 @@ sources/
 # Ghost -> vault mirror: the real vault is a PRIVATE dir inside the user's
 # personal Obsidian vault (VAULT_DIR in .env). It must never be committed here,
 # and Claude/LLMs must never read it (see CLAUDE.md). These guard accidental copies.
-vault/
-vault-preview/
-inbox/
+# NOTE: anchored with a leading slash so they match only top-level dirs and do
+# NOT swallow the source tree (e.g. src/vault/). out/ already covers vault-preview.
+/vault/
+/inbox/
 *.ghost-export.json
 ghost-export*.json
