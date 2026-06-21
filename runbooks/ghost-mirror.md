@@ -65,8 +65,9 @@ auto-export exists, the wrapper expects a fresh export in `inbox/`.
 
 - **2FA:** scripted export can be blocked by a Ghost(Pro) email code on new-device
   logins. Run from a stable machine/IP and persist the session; else use manual export.
-- **Images:** Milestone 1 leaves images as `https://<site>/content/images/...`
-  URLs. They resolve while Ghost is alive; local download (Milestone 2) makes the
-  vault fully self-contained.
+- **Images:** downloaded locally beside each post (Milestone 2) → the vault is
+  self-contained. Full-resolution originals, so the mirror is large (~940MB for
+  ~68 image-heavy posts). Re-runs skip images already on disk. Use `--no-images`
+  to keep them as Ghost URLs (fast), or `--limit N` to process a subset.
 - **Deletions:** a post removed in Ghost won't be re-emitted but is **not** deleted
   from the vault automatically — the sync reports it so you decide.

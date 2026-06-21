@@ -6,6 +6,7 @@ import { parseObsidian } from './sources/obsidian.js';
 import { parseWpcom, parseWxr } from './sources/wordpress.js';
 import { preparePipeline } from './pipeline.js';
 import { convertExport } from './vault/convert.js';
+import { downloadImages } from './vault/images.js';
 import { log } from './lib/log.js';
 
 const USAGE = `
@@ -26,6 +27,8 @@ Options:
   --out=<dir>               Vault output dir (default: VAULT_DIR, or ./out/vault-preview for dry-run)
   --dry-run                  sync: write to ./out/vault-preview instead of the real vault
   --drafts                   sync: include draft posts
+  --no-images                sync: keep images as Ghost URLs (skip local download)
+  --limit=<n>                sync: only process the first n posts (for testing)
 
 Import workflow (Obsidian/WP -> Ghost): build-import then upload via Migration tools.
 Mirror workflow (Ghost -> Obsidian vault): see docs/ghost-to-vault.md and runbooks/.
@@ -107,20 +110,40 @@ async function main() {
       if (!outDir) {
         throw new Error('No vault dir: set VAULT_DIR in .env, pass --out=<dir>, or use --dry-run (writes ./out/vault-preview).');
       }
+      const noImages = process.argv.includes('--no-images');
+      const limit = Number(arg('limit', 0)) || 0;
       const doc = JSON.parse(fs.readFileSync(from, 'utf8'));
-      const files = convertExport(doc, {
+      let files = convertExport(doc, {
         includeDrafts: process.argv.includes('--drafts'),
         siteUrl: config.ghostSiteUrl,
+        localizeImages: !noImages,
       });
+      if (limit > 0) files = files.slice(0, limit);
+
+      const imgCache = new Map();
+      const imgTotals = { ok: 0, copied: 0, skipped: 0, failed: 0, failures: [] };
       let written = 0;
       for (const f of files) {
         const abs = path.join(outDir, f.relPath);
         fs.mkdirSync(path.dirname(abs), { recursive: true });
         fs.writeFileSync(abs, f.markdown);
         written += 1;
+        if (!noImages && f.downloads.length) {
+          const dir = path.dirname(abs);
+          const tasks = f.downloads.map((d) => ({ url: d.url, absPath: path.join(dir, d.fileName) }));
+          const s = await downloadImages(tasks, { cache: imgCache });
+          for (const k of ['ok', 'copied', 'skipped', 'failed']) imgTotals[k] += s[k];
+          imgTotals.failures.push(...s.failures);
+        }
       }
       log.ok(`sync: wrote ${written} post(s) to ${outDir}${dryRun ? '  (dry-run)' : ''}`);
-      log.info('Milestone 1: images are still Ghost URLs (local download is the next milestone).');
+      if (noImages) {
+        log.info('images left as Ghost URLs (--no-images).');
+      } else {
+        log.ok(`images: ${imgTotals.ok} downloaded, ${imgTotals.copied} copied, ${imgTotals.skipped} already present, ${imgTotals.failed} failed`);
+        for (const f of imgTotals.failures.slice(0, 10)) log.warn(`  image failed: ${f.url} (${f.error})`);
+        if (imgTotals.failures.length > 10) log.warn(`  …and ${imgTotals.failures.length - 10} more`);
+      }
       break;
     }
     default:
