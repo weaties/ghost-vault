@@ -91,6 +91,6 @@ node src/cli.js sync --from inbox/ghost-export.json             # write VAULT_DI
 **Phase 2 — mirror OUT (in progress)**
 - ✅ Milestone 1: converter MVP — `sync` → `YYYY/MM/<slug>.md` + frontmatter (verified, 68 posts)
 - ✅ Milestone 2: local image download — self-contained vault (verified, 785 images, 0 failures)
-- 🟡 Milestone 3: idempotency + git change detection
+- ✅ Milestone 3: incremental change-detection — unchanged/updated/moved/deleted (re-sync skips all, 0 downloads)
 - 🟡 Milestone 4: sparse JSON-archive retention
 - 🟡 Milestone 5–6: scripted export (session auth) + RSS watch

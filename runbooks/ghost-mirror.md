@@ -42,8 +42,11 @@ node src/cli.js sync --from inbox/ghost-export.json     # uses VAULT_DIR from .e
 git -C "$VAULT_DIR" add -A && git -C "$VAULT_DIR" commit -m "mirror: $(date +%F)"
 ```
 
-Re-running is safe and idempotent: files are keyed by slug, so edits update in
-place and `git diff` shows exactly what changed in Ghost since last run.
+Re-running is safe and idempotent: posts are keyed by `ghost_id`, so a post whose
+`updated_at` is unchanged is skipped entirely (no rewrite, no image re-download) —
+only genuinely-changed posts are touched, and `git diff` shows exactly what
+changed in Ghost. Slug/date changes move the file (old attachments cleaned up);
+posts removed in Ghost are **reported, not deleted**. Use `--force` to rewrite all.
 
 ## Flags
 
@@ -53,6 +56,7 @@ place and `git diff` shows exactly what changed in Ghost since last run.
 | `--dry-run` | Write to `out/vault-preview/` instead of `VAULT_DIR` |
 | `--out <dir>` | Override the output dir explicitly |
 | `--drafts` | Include draft posts (default: published only) |
+| `--force` | Rewrite + redownload every post, even unchanged ones |
 
 ## Scheduling (launchd)
 
