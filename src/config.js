@@ -43,4 +43,11 @@ export const config = {
   // Durable archive of raw Ghost exports (sparse retention). Defaults beside the
   // vault if unset. Holds full content JSON — keep it private like the vault.
   archiveDir: resolveMaybe(process.env.ARCHIVE_DIR),
+
+  // Staff credentials for scripted export (fetch-export). Sensitive — .env only,
+  // never committed. Used for session-auth login (no integration API needed).
+  ghostAdmin: {
+    email: process.env.GHOST_ADMIN_EMAIL,
+    password: process.env.GHOST_ADMIN_PASSWORD,
+  },
 };

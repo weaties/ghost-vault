@@ -4,24 +4,34 @@
 # Intended to be run UNATTENDED by launchd (see deploy/launchd/). This is the
 # only sanctioned path that writes to the real VAULT_DIR.
 #
-# Until Tier-2 auto-export exists, it consumes the newest export dropped in
-# inbox/ (from a manual "Migration tools -> Export"). It is safe to re-run.
+# If GHOST_ADMIN_EMAIL/PASSWORD are set, it tries a scripted export first; on any
+# failure (2FA, rate-limit, etc.) it falls back to the newest export in inbox/
+# (from a manual "Migration tools -> Export"). It is safe to re-run.
 #
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
-# Load config (VAULT_DIR, GHOST_SITE_URL). .env is gitignored.
+# Load config (VAULT_DIR, GHOST_SITE_URL, GHOST_ADMIN_*). .env is gitignored.
 if [[ -f .env ]]; then
   set -a; . ./.env; set +a
 fi
 : "${VAULT_DIR:?VAULT_DIR must be set in .env}"
 
+# Best-effort scripted export -> inbox/. Falls back to a manual export on failure.
+if [[ -n "${GHOST_ADMIN_EMAIL:-}" && -n "${GHOST_ADMIN_PASSWORD:-}" && -z "${1:-}" ]]; then
+  if node src/cli.js fetch-export --out inbox; then
+    echo "mirror-sync: fetched a fresh export"
+  else
+    echo "mirror-sync: scripted export failed (2FA/rate-limit?) — using newest inbox/ export" >&2
+  fi
+fi
+
 # Pick the newest export from inbox/ (override with $1).
 EXPORT_FILE="${1:-$(ls -t inbox/*.json 2>/dev/null | head -1 || true)}"
 if [[ -z "${EXPORT_FILE:-}" || ! -f "$EXPORT_FILE" ]]; then
-  echo "mirror-sync: no export file found (inbox/*.json or arg 1)" >&2
+  echo "mirror-sync: no export file found (set GHOST_ADMIN_* for auto-export, or drop one in inbox/)" >&2
   exit 1
 fi
 

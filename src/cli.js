@@ -8,6 +8,7 @@ import { preparePipeline } from './pipeline.js';
 import { convertExport } from './vault/convert.js';
 import { syncToVault } from './vault/sync.js';
 import { archiveExport } from './vault/archive.js';
+import { fetchGhostExport } from './ghost/fetchExport.js';
 import { log } from './lib/log.js';
 
 const USAGE = `
@@ -20,6 +21,7 @@ Usage:
   ghost-vault build-import [--source=all] Write an upload-ready Ghost import JSON to ./out
   ghost-vault sync --from <export.json>   Mirror a Ghost export into the vault (Ghost -> Obsidian)
   ghost-vault archive --from <export.json> Archive a raw export with sparse retention
+  ghost-vault fetch-export [--out <dir>]   Download a fresh export via staff-session login
 
 Options:
   --source=obsidian|wp|all   Which era(s) to process (default: all)
@@ -161,6 +163,18 @@ async function main() {
       log.info(`retention: keeping ${r.kept}, pruned ${r.dropped.length} -> ${dir}`);
       for (const d of r.dropped.slice(0, 10)) log.dim(`  pruned: ${d}`);
       if (r.dropped.length > 10) log.dim(`  …and ${r.dropped.length - 10} more`);
+      break;
+    }
+    case 'fetch-export': {
+      const { email, password } = config.ghostAdmin;
+      if (!email || !password) {
+        throw new Error('fetch-export needs GHOST_ADMIN_EMAIL and GHOST_ADMIN_PASSWORD in .env (staff login).');
+      }
+      const outDir = arg('out', null) || path.join(process.cwd(), 'inbox');
+      log.info(`fetch-export: logging in to ${config.ghostSiteUrl} as staff…`);
+      const r = await fetchGhostExport({ siteUrl: config.ghostSiteUrl, email, password, outDir });
+      log.ok(`fetch-export: ${r.posts} posts -> ${r.outFile}`);
+      log.info(`next: node src/cli.js sync --from ${r.outFile}`);
       break;
     }
     default:
