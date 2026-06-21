@@ -11,15 +11,15 @@ import { archiveExport } from './vault/archive.js';
 import { log } from './lib/log.js';
 
 const USAGE = `
-blogport — migrate old blog content into Ghost (Starter plan, no Admin API)
+ghost-vault — own your blog content (migrate INTO Ghost; mirror Ghost OUT to a vault)
 
 Usage:
-  blogport parse-obsidian              Parse Era 1 (Obsidian/Jekyll), print a summary
-  blogport parse-wp                    Parse Era 2 (WordPress WXR), print a summary
-  blogport reconcile   [--source=all]  Compare against a Ghost export; report dup-free plan (no file)
-  blogport build-import [--source=all] Write an upload-ready Ghost import JSON to ./out
-  blogport sync --from <export.json>   Mirror a Ghost export into the vault (Ghost -> Obsidian)
-  blogport archive --from <export.json> Archive a raw export with sparse retention
+  ghost-vault parse-obsidian              Parse Era 1 (Obsidian/Jekyll), print a summary
+  ghost-vault parse-wp                    Parse Era 2 (WordPress WXR), print a summary
+  ghost-vault reconcile   [--source=all]  Compare against a Ghost export; report dup-free plan (no file)
+  ghost-vault build-import [--source=all] Write an upload-ready Ghost import JSON to ./out
+  ghost-vault sync --from <export.json>   Mirror a Ghost export into the vault (Ghost -> Obsidian)
+  ghost-vault archive --from <export.json> Archive a raw export with sparse retention
 
 Options:
   --source=obsidian|wp|all   Which era(s) to process (default: all)

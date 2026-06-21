@@ -1,4 +1,4 @@
-# port-old-blog-posts
+# ghost-vault
 
 Migration tooling to move two eras of blog content into **Ghost** (`weaties.ghost.io`):
 

@@ -87,7 +87,7 @@ Consolidate all historical blog content into the Ghost site, preserving **images
 ## Working notes
 
 - A scratch clone of the Era 1 repo was made at `/tmp/blog_inspect` during scoping (not committed here). Re-clone fresh when doing the real migration.
-- Primary working directory: `/Users/dweatbrook/src/portOldBlogPosts` (started empty; this is the migration tooling/workspace, not the content itself).
+- This repo (`ghost-vault`) is the tooling/workspace, not the content itself. It contains no blog content, vault, or secrets (see Repo/sharing).
 - The tooling never writes to Ghost directly — it only produces files under `out/` for you to review, then you upload via Migration tools. `out/<label>.summary.json` carries the reconcile plan (duplicate/review/new) and dropped-duplicate list; `out/<label>.ghost-import.json` is the upload file.
 - Workflow: (1) Ghost → Migration tools → **Export** → save JSON; (2) `node src/cli.js build-import --source=obsidian --against=<export.json>`; (3) review `out/`; (4) Ghost → Migration tools → **Import** the generated file.
 
