@@ -33,10 +33,12 @@
     <key>StandardErrorPath</key>
     <string>__REPO_DIR__/out/ingest.err.log</string>
 
+    <!-- __NODE_BIN__ is the dir of `node` (e.g. an nvm path), injected at install
+         so launchd's minimal environment can find it. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <string>__NODE_BIN__:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
     </dict>
 </dict>
 </plist>

@@ -11,20 +11,19 @@ automatically — no login, no 2FA, no file-moving. The only manual step is the
 Export click.
 
 ```sh
-REPO_DIR="$(pwd)"                 # run from the repo root
-WATCH_DIR="$HOME/Downloads"       # or your browser's download dir
-PLIST="$HOME/Library/LaunchAgents/com.weaties.ghost-vault-watch.plist"
-
-sed -e "s|__REPO_DIR__|$REPO_DIR|g" -e "s|__WATCH_DIR__|$WATCH_DIR|g" \
-  deploy/launchd/com.weaties.ghost-vault-watch.plist.template > "$PLIST"
-
-chmod +x bin/ingest-downloads.sh
-launchctl load "$PLIST"
+bin/install-watch-agent.sh        # run from the repo root
 ```
+
+The installer fills the plist with this repo's path, `WATCH_DIR` (from `.env`, or
+`~/Downloads`), and your real `node` directory (so launchd's minimal `PATH` finds
+an nvm/homebrew node), then loads the agent. Safe to re-run. Re-run it if you
+change node versions (nvm) so the baked-in node path stays valid.
 
 `WatchPaths` fires on any change in the folder; the script exits instantly when
 there's no new Ghost export, so frequent triggers are cheap. `ingest` dedups via
-the archive, so re-triggers do no redundant work.
+the archive, so re-triggers do no redundant work. `RunAtLoad` means it processes
+whatever export is already in the folder on load (and each login) — the first
+load does your initial populate.
 
 ## Alternative: scheduled inbox processing (`ghost-mirror`)
 
