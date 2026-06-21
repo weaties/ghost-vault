@@ -42,6 +42,14 @@ node src/cli.js sync --from inbox/ghost-export.json     # uses VAULT_DIR from .e
 git -C "$VAULT_DIR" add -A && git -C "$VAULT_DIR" commit -m "mirror: $(date +%F)"
 ```
 
+### D. Archive the raw export (sparse retention)
+```sh
+node src/cli.js archive --from inbox/ghost-export.json   # -> ARCHIVE_DIR
+```
+Keeps the newest, everything within `--keep-recent-days` (default 7), one export
+per doubling age band, and the oldest forever (~O(log age) files). Idempotent;
+the launchd wrapper runs it automatically after each sync.
+
 Re-running is safe and idempotent: posts are keyed by `ghost_id`, so a post whose
 `updated_at` is unchanged is skipped entirely (no rewrite, no image re-download) —
 only genuinely-changed posts are touched, and `git diff` shows exactly what

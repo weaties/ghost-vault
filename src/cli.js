@@ -7,6 +7,7 @@ import { parseWpcom, parseWxr } from './sources/wordpress.js';
 import { preparePipeline } from './pipeline.js';
 import { convertExport } from './vault/convert.js';
 import { syncToVault } from './vault/sync.js';
+import { archiveExport } from './vault/archive.js';
 import { log } from './lib/log.js';
 
 const USAGE = `
@@ -18,6 +19,7 @@ Usage:
   blogport reconcile   [--source=all]  Compare against a Ghost export; report dup-free plan (no file)
   blogport build-import [--source=all] Write an upload-ready Ghost import JSON to ./out
   blogport sync --from <export.json>   Mirror a Ghost export into the vault (Ghost -> Obsidian)
+  blogport archive --from <export.json> Archive a raw export with sparse retention
 
 Options:
   --source=obsidian|wp|all   Which era(s) to process (default: all)
@@ -141,6 +143,21 @@ async function main() {
         for (const d of deletions.slice(0, 20)) log.dim(`  gone: ${d.relPath}`);
         if (deletions.length > 20) log.dim(`  …and ${deletions.length - 20} more`);
       }
+      break;
+    }
+    case 'archive': {
+      const from = arg('from', null);
+      if (!from) throw new Error('archive needs --from=<export.json>.');
+      if (!fs.existsSync(from)) throw new Error(`Export not found: ${from}`);
+      const dryRun = process.argv.includes('--dry-run');
+      const dir = arg('archive-dir', null) || (dryRun ? path.join(config.outDir, 'archive-preview') : config.archiveDir);
+      if (!dir) throw new Error('No archive dir: set ARCHIVE_DIR in .env, pass --archive-dir=<dir>, or use --dry-run.');
+      const keepRecentDays = Number(arg('keep-recent-days', 7)) || 0;
+      const r = archiveExport(from, dir, { keepRecentDays, dryRun });
+      log.ok(`archive: ${r.archived ? 'stored' : 'already present'} ${r.name}${dryRun ? '  (dry-run)' : ''}`);
+      log.info(`retention: keeping ${r.kept}, pruned ${r.dropped.length} -> ${dir}`);
+      for (const d of r.dropped.slice(0, 10)) log.dim(`  pruned: ${d}`);
+      if (r.dropped.length > 10) log.dim(`  …and ${r.dropped.length - 10} more`);
       break;
     }
     default:

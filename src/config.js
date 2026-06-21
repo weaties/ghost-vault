@@ -39,4 +39,8 @@ export const config = {
   // personal Obsidian vault — set VAULT_DIR in .env (never committed). Claude/LLMs
   // must never read it; only launchd-run scripts write to it. See CLAUDE.md.
   vaultDir: resolveMaybe(process.env.VAULT_DIR), // undefined until configured
+
+  // Durable archive of raw Ghost exports (sparse retention). Defaults beside the
+  // vault if unset. Holds full content JSON — keep it private like the vault.
+  archiveDir: resolveMaybe(process.env.ARCHIVE_DIR),
 };

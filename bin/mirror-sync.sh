@@ -28,6 +28,11 @@ fi
 echo "mirror-sync: syncing $EXPORT_FILE -> $VAULT_DIR"
 node src/cli.js sync --from "$EXPORT_FILE"
 
+# Archive the raw export with sparse retention (keeps oldest forever, thins the rest).
+if [[ -n "${ARCHIVE_DIR:-}" ]]; then
+  node src/cli.js archive --from "$EXPORT_FILE" --archive-dir "$ARCHIVE_DIR"
+fi
+
 # Commit the change in the vault repo (if it is a git repo).
 if git -C "$VAULT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$VAULT_DIR" add -A
@@ -39,4 +44,3 @@ if git -C "$VAULT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   fi
 fi
 
-# TODO (Milestone 4): prune the JSON archive with sparse retention here.
