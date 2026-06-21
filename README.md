@@ -71,14 +71,19 @@ Obsidian vault so you own it and can rehost later. Design: `docs/ghost-to-vault.
 Runbook: `runbooks/ghost-mirror.md`.
 
 ```sh
-node src/cli.js sync --from inbox/ghost-export.json --dry-run   # preview -> out/vault-preview/
-node src/cli.js sync --from inbox/ghost-export.json             # write VAULT_DIR (from .env)
+node src/cli.js sync --from <export>.json --dry-run   # preview -> out/vault-preview/
+node src/cli.js sync --from <export>.json             # write VAULT_DIR (from .env)
 ```
+
+**Hands-off:** install the `ghost-vault-watch` launchd agent (`deploy/launchd/`)
+to watch `~/Downloads`. Then your whole workflow is clicking **Export** in Ghost —
+the agent runs `ingest` (validate + dedup + sync + archive) on the new file
+automatically. No login, no 2FA. (Staff 2FA rules out scripted export.)
 
 > ⛔ The real vault is inside a personal Obsidian vault (private journals). It is
 > set via `VAULT_DIR` in `.env` (never committed) and **must never be read by an
-> LLM**. Develop with `--dry-run` only; real writes happen via launchd
-> (`deploy/launchd/`, `bin/mirror-sync.sh`).
+> LLM**. Develop with `--dry-run` only; real writes happen via the launchd agents
+> (`deploy/launchd/`, `bin/ingest-downloads.sh`).
 
 ## Status
 
@@ -88,9 +93,10 @@ node src/cli.js sync --from inbox/ghost-export.json             # write VAULT_DI
 - ✅ Reconciliation against a Ghost export (dup-free) — slug / title+date / content fingerprint
 - ✅ Ghost import-file generator + image hotlinking — both eras imported
 
-**Phase 2 — mirror OUT (in progress)**
-- ✅ Milestone 1: converter MVP — `sync` → `YYYY/MM/<slug>.md` + frontmatter (verified, 68 posts)
-- ✅ Milestone 2: local image download — self-contained vault (verified, 785 images, 0 failures)
+**Phase 2 — mirror OUT (functionally complete)**
+- ✅ Milestone 1: converter MVP — `sync` → `YYYY/MM/<slug>.md` + frontmatter (verified)
+- ✅ Milestone 2: local image download — self-contained vault (verified, 0 failures)
 - ✅ Milestone 3: incremental change-detection — unchanged/updated/moved/deleted (re-sync skips all, 0 downloads)
 - ✅ Milestone 4: sparse JSON-archive retention — exponential thinning, oldest kept forever (verified)
-- 🟡 Milestone 5–6: scripted export (session auth) + RSS watch
+- ✅ Automation: **watch-Downloads** launchd agent → `ingest` (validate + dedup + sync + archive)
+- ⛔ `fetch-export` (scripted login) built but defeated by Ghost(Pro) staff 2FA; RSS-trigger dropped as moot

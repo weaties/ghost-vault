@@ -9,6 +9,17 @@ faithful downstream copy. No pushing back into Ghost.
 This is the inverse of the existing import tooling and reuses most of it
 (`ghostExport.js`, the normalized model, image handling).
 
+> **OUTCOME (this doc is the original design; here's what actually shipped).**
+> The converter, local-image download, incremental change-detection, and sparse
+> archive (§3–§4) shipped as designed and verified. **Acquiring the export (§2)
+> changed:** this Ghost(Pro) account has **staff 2FA**, so the scripted
+> session-login (Tier 2) and the RSS-triggered loop (Tier 3) can't run unattended
+> — every login emails a one-time code. The shipped automation instead **watches
+> the Downloads folder** (where exports already land) via a launchd `WatchPaths`
+> agent that runs `ingest` (validate + dedup + sync + archive). `fetch-export`
+> exists but is unused. See `CLAUDE.md` (Phase 2) and `runbooks/ghost-mirror.md`
+> for the as-built workflow; §2's Tiers below are kept as the original analysis.
+
 ---
 
 ## 1. Architecture / data flow
