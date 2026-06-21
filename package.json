@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "description": "Own your blog content: migrate Obsidian/Jekyll + WordPress into Ghost, and mirror Ghost back into an Obsidian vault.",
+  "license": "MIT",
+  "author": "Dan W (weaties)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weaties/ghost-vault.git"
+  },
   "bin": {
     "ghost-vault": "./src/cli.js"
   },
