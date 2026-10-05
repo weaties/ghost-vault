@@ -4,6 +4,7 @@ This repo holds the tooling that lets the user own and control their blog conten
 
 - **Phase 1 (done) — migrate IN:** consolidate historical content from two source eras into the Ghost site. See "Phase 1" below.
 - **Phase 2 (active) — mirror OUT:** continuously mirror the Ghost site into a private local Obsidian vault, so Ghost stays the authoring tool but the content lives, versioned, on disk and can be rehosted anytime. See "Phase 2" and `docs/ghost-to-vault.md`.
+- **Editor (since 2026-09-20) — proofread drafts in place:** Claude proofreads a Ghost draft through the browser and leaves comments as `CLAUDE:` callout cards. It fixes typos and punctuation and never rewrites. Rules: `editor/STYLE.md`. Procedure and guards: `runbooks/ghost-editor.md`. Helpers: `editor/koenig-helpers.js`. Never type into a post that is not a `Draft`.
 
 This file is the working brief. Read it before starting any task.
 

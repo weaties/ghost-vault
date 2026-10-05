@@ -18,7 +18,8 @@
     "parse:wp": "node src/cli.js parse-wp",
     "build-import": "node src/cli.js build-import",
     "sync": "node src/cli.js sync",
-    "archive": "node src/cli.js archive"
+    "archive": "node src/cli.js archive",
+    "editor:helpers": "node editor/print-helpers.mjs"
   },
   "dependencies": {
     "@tryghost/admin-api": "^1.13.12",
