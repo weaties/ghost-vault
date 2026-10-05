@@ -57,6 +57,11 @@ Accepted by the author, either written by him or left in place after being flagg
 | Fraternal Order of the Eagles (his wording; keep "the") | Fraternal order |
 | Corvo (the boat; no article) | the Corvo |
 | Golden Gardens, Lake Union, Olympic Manor | |
+| Race to the Straits | Race to the Straights |
+| Thistle (the dinghy class) | thistle |
+| Santa Cruz 27, Olson 30 | Santa cruz 27 |
+| Jfest | jfest |
+| Facebook | facebook |
 
 **The boat is `Corvo`, never `the Corvo`** (confirmed by the author 2026-09-20). Removing a stray `the` before it is a silent fix.
 

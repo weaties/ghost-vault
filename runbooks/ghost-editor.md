@@ -39,6 +39,18 @@ Batch these five steps per fix. Any guard that throws halts the batch.
 
 Why each step: without the click, typed text is **silently dropped** and nothing reports an error. Without the verify, keystrokes land at the previous caret. Without the post-check, a dropped edit looks like success.
 
+### First letter of a link
+
+Typing over a link's first character puts the new text **outside** the link (`F` + linked `acebook`), and `ge.changed` then fails because neither form is a single text node. Lexical only keeps typed text in the link when the caret is strictly inside it. So insert the new letter second, then delete the old first letter (method from the author, 2026-10-05):
+
+1. `ge.locate` and click the link text as usual.
+2. `await ge.select('', 'acebook')`: an empty needle gives a verified caret right after the first letter.
+3. Type the new letter. The link now reads `fFacebook`.
+4. `await ge.select('', 'Facebook')`: caret between the old letter and the new one. Press `Backspace` once.
+5. `await ge.changed('Facebook', 'facebook')`, then confirm the `<a>` around `Facebook` still has its `href`.
+
+If a slip leaves the letter outside the link, one `cmd+z` restores the original.
+
 ## Leave a comment
 
 1. `ge.locate(ctx, frameW)` on a **body** paragraph or heading, then a real click.
@@ -47,6 +59,7 @@ Why each step: without the click, typed text is **silently dropped** and nothing
 4. `ge.menuOK()` — throws unless the slash menu has narrowed to Callout. Pressing Return early inserts an Image card.
 5. Press `Return`. `await ge.inCallout()` — throws unless focus is in a new, empty callout.
 6. Type the comment, starting `CLAUDE:`. Do not press Escape afterwards. It leaves the card node-selected, and Lexical then ignores the next scripted caret.
+7. **Real click on body text** outside the callout before any further `ge` call. While focus is inside a callout, the main editor drops its `data-koenig-dnd-container` attribute, so `ge.locate` fails with "match is not inside the post body". Re-clicking the block you just anchored to works, since its position has not moved. Then `ge.locate` the next target.
 
 For a comment at the very end, use `ge.locateLastEmptyParagraph(frameW)`, click, `await ge.caretInLastEmptyParagraph()`, then continue from "Type `/callout`" with no Return first.
 
@@ -66,6 +79,7 @@ For a comment at the very end, use `ge.locateLastEmptyParagraph(frameW)`, click,
 - **Text landed in the wrong place, or a wrong card appeared:** press `cmd+z` once, look with `ge.near(ctx)`, and repeat until the blocks match the original. If focus is inside a caption, press Escape first so undo reaches the main editor. An empty stray card that undo will not remove can be deleted with Backspace while it is selected.
 - **Ranged deletes are blocked** by the automation permission layer, and rightly. Use undo.
 - **A guard throws:** nothing was typed. Read the message, fix the aim, run that fix again.
+- **`ge: match is not inside the post body` right after a comment:** focus is still in the callout. Click on body text, then retry (step 7 of "Leave a comment").
 - **Never** retry a failing action in a loop. After two attempts, stop and report.
 
 ## After the pass
